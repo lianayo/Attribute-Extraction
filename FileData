@@ -1,0 +1,485 @@
+package dm;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import com.jramoyo.io.BufferedRandomAccessFile;
+
+@SuppressWarnings("unused")
+public class FileData extends Files {
+private String[] Headers;
+public ArrayList<String[]> Data = new ArrayList<String[]>();
+private String path;
+private String Delimiter;
+//Constructors
+	FileData(ArrayList<String[]> input){
+		//Get Array
+		Data=input;
+		try{
+			Headers=Data.get(0);
+			Data.remove(0);
+		}catch(Exception e){}
+	}
+	FileData(String path,String delimiter,boolean headers) throws IOException{
+		//open file
+		this.path=path;
+		this.Delimiter=Delimiter;
+		ArrayList<String[]> temp=Read(path, delimiter,headers).GetData();
+		Data=temp;
+		temp=null;
+	}
+	public FileData(){
+		this.Delimiter="\t";
+		//create empty file
+	}	
+
+	public FileData RemoveDuplicates(){
+		ArrayList<String[]> DistinctData=new ArrayList<String[]>();
+		List<String> list = this.AsRows();
+		Set<String> set = new HashSet<String>(list);
+		int numDuplicates = list.size() - set.size();
+		for (String row: set)
+			DistinctData.add(row.split("\t"));
+		this.Data=DistinctData;
+		System.out.println(numDuplicates+" Duplicates found and removed");
+		return this;
+		
+	}
+	public FileData AddData(ArrayList<String[]> input){
+		this.Data.addAll(input);
+		return this;
+	}	
+	public FileData AddData(FileData input){
+		this.Data.addAll(input.Data);
+		return this;
+	}
+	public String[] GetRowByIndex(int index){
+		index--;
+		return Data.get(index);
+	}
+	public FileData GetRowsByCriteria(int[] ColIndex,String[][] Criteria,boolean IgnoreCase){
+		FileData SubFileData = new FileData();
+		int matches=0;
+		int i=0;
+		if (ColIndex.length!=Criteria.length){
+			System.out.println("Columnts and criteria don't match");
+			return null;
+		}
+		else{
+			for (String row[]:Data){
+				for (int Col:ColIndex){
+					if (ArrayContain(row[Col-1],Criteria[i],IgnoreCase)){
+						matches++;
+					}
+					i++;
+				}
+				i=0;
+				if (matches==ColIndex.length){
+					SubFileData.AddRow(row);
+				}
+			matches=0;
+			}
+		}
+		return SubFileData;
+	}
+	public FileData GetRowsByCriteria(int ColIndex,String[] Criteria,boolean IgnoreCase){
+		ColIndex--;
+		FileData SubFileData = new FileData();
+	//returns row where multiple columns match single criteria
+		SubFileData.Data.clear();
+			for (String row[]:this.Data){
+						if (ArrayContain(row[ColIndex],Criteria,IgnoreCase)){
+							SubFileData.AddRow(row);
+						}
+			}
+		return SubFileData;
+	}
+	public FileData GetRowsByCriteria(int ColIndex,String Criteria,boolean IgnoreCase){
+		ColIndex--;
+		FileData SubFileData = new FileData();
+	//returns row where single columns matches single criteria
+		SubFileData.Data.clear();
+			for (String row[]:this.Data){
+				if(IgnoreCase){
+						if (row[ColIndex].equalsIgnoreCase(Criteria)){
+							SubFileData.AddRow(row);
+						}
+				}else{
+						if (row[ColIndex].equals(Criteria)){
+							SubFileData.AddRow(row);
+						}
+				}
+			}
+		return SubFileData;
+	}
+	public static boolean ArrayContain(String Value,String[] Array,boolean IgnoreCase){
+		for (String Val:Array){
+			if (IgnoreCase){
+				if (Val.equalsIgnoreCase(Value)){
+					return true;
+				}
+			}
+			else{
+				if (Val.equals(Value)){
+					return true;
+		}}}
+	return false;
+	}
+	public void PrinRow(int index){
+		for (String Field:GetRowByIndex(index)){
+			System.out.print(Field+"\t");
+		}
+	}
+	public void PrinCol(int ColIndex){
+		ColIndex--;
+		try{
+			for(String[] row:Data){	
+				System.out.println(row[ColIndex]);
+			}
+		}catch (ArrayIndexOutOfBoundsException A){
+			System.out.println("Column index out of bounds");
+		}
+	}
+	public void PrinCol(String ColName){
+		int ColIndex=-1;
+		for (String Header:Headers){
+			ColIndex++;
+			if (Header.equalsIgnoreCase(ColName)){
+					break;
+			}
+		}
+		for(String[] row:Data){
+			System.out.println(row[ColIndex]);
+		}
+	}
+	public FileData Save(String path){
+		ArrayList<String[]> out = new ArrayList<String[]>();
+		if (this.Headers!=null && this.Headers.length>0)
+			out.add(this.Headers);
+		out.addAll(this.Data);
+		Files.WriteAll(path, out);
+		this.path=path;
+		return this;
+	}
+	public FileData AddRow(String[] dataArray) {
+		Data.add(dataArray);
+		return this;
+		
+	}
+	public ArrayList<String[]> GetData(){
+		return Data;
+	}
+	public FileData SetData(ArrayList<String[]> data){
+		this.Data=data;
+		return this;
+	}
+	public String GetPath(){
+		return this.path;
+	}
+	public String GetDelimiter(){
+		return this.Delimiter;
+	}
+	public String DataToString(){
+		String out=RowToString(Headers)+"\n";
+		for (String[] row:Data){
+			out=out+RowToString(row)+"\n";
+		}
+	return out;
+	}
+	public FileData SetPath(String Path){
+		this.path=Path;
+		return this;
+	}
+	public FileData SetDelimiter(String Delimiter){
+		this.Delimiter=Delimiter;
+		return this;
+	}
+	public void PrintData(){
+		Files.print(this);
+	}
+	public ArrayList<String> AsRows(){
+		ArrayList<String> out = new ArrayList<String>();
+		for (String[] row:this.Data)
+			out.add(Files.RowToString(row));
+		return out;
+	}
+	public static ArrayList<String[]> SplitRows(ArrayList<String> in){
+		ArrayList<String[]> out=new ArrayList<String[]>();
+		for (String row:in)
+			out.add(row.split("\t"));
+		return out;
+		
+	}
+	public void SetHeaders(String[] headers){
+		this.Headers=headers;
+	}
+	public String[] GetHeaders(){
+		return this.Headers;
+	}
+	public FileData Clear(){
+		this.Data.clear();
+		this.Headers=null;
+		this.Delimiter=null;
+		return this;
+	}
+	public FileData Sort(int col){
+		boolean headers=false;
+			FileSorter sorter=new FileSorter(this.Data);
+		
+		this.SetData(sorter.SortBy(col, headers));
+//		this.PrintData();  //Dubug
+		return this;
+		}
+	public FileData IndexFile(int col) throws IOException{
+		col--;
+		String delimiter="\t";
+		BufferedRandomAccessFile File=null;
+		String next,cur="";
+		long start,end=0L;
+		FileData index=new FileData();
+	    try {
+	    	File = new BufferedRandomAccessFile(path, "r");
+	    }catch (FileNotFoundException e2) {
+	         	e2.printStackTrace();
+	    }  
+    	index.SetHeaders(new String[]{File.getNextLine().split("\t")[col],"Start","End"});
+    	
+    	start = File.getFilePointer();
+    	cur=File.getNextLine().split("\t")[col];
+	    while (File.length()!=File.getFilePointer()){
+	    	next=File.getNextLine().split("\t")[col];
+		    if (next.equals(cur)){
+		    	end=File.getFilePointer();
+		    }else{
+		    		index.AddRow(new String[]{cur,String.valueOf(start),String.valueOf(end)});
+		    		start=end;
+		    		cur=next; 
+		    	}
+	    }
+	    index.AddRow(new String[]{cur,String.valueOf(start),String.valueOf(File.length())});
+	    try{
+	           	File.close();
+	         } catch (IOException e) {   
+	                e.printStackTrace();
+	         }      
+	    index.SetDelimiter(delimiter);
+	    index.SetPath(Files.AddToFileName(path, " index"));
+	    index.Save(index.GetPath());
+	return index;
+	}
+	public FileData Read(String path,String delimiter,boolean headers) throws IOException{
+		 if (delimiter!= null && !delimiter.equals("")){
+		 }else{
+			 delimiter="\t";
+			 }
+		 BufferedRandomAccessFile File=null;
+        try {
+       	 File = new BufferedRandomAccessFile(path, "r");
+        }catch (FileNotFoundException e2) {
+             	System.out.println("file not found");
+        }
+        while (File.length()!=File.getFilePointer()){
+             if (headers && File.getFilePointer()==0)
+               		this.SetHeaders(File.getNextLine().split("\t"));
+             else
+               		this.AddRow(File.getNextLine().split("\t"));
+             }try{
+               	File.close();
+             } catch (IOException e) {   
+                    e.printStackTrace();
+             }      
+             this.SetDelimiter(delimiter);
+             this.SetPath(path);
+       return this;
+}
+	public FileData ReadThis(boolean headers) throws IOException{
+		 BufferedRandomAccessFile File=null;
+       try {
+      	 File = new BufferedRandomAccessFile(path, "r");
+       }catch (FileNotFoundException e2) {
+            	e2.printStackTrace();
+       }
+       while (File.length()!=File.getFilePointer()){
+            if (headers && File.getFilePointer()==0)
+              		this.SetHeaders(File.getNextLine().split("\t"));
+            else
+              		this.AddRow(File.getNextLine().split("\t"));
+            }try{
+              	File.close();
+            } catch (IOException e) {   
+                   e.printStackTrace();
+            }      
+            this.SetDelimiter(Delimiter);
+            this.SetPath(path);
+      return this;
+}
+	public FileData SortAndIndex(int col) throws IOException{
+		System.out.println("sorting");
+		this.Sort(col).Save(Files.AddToFileName(path, " sorted"));
+		System.out.println("Sorted file saved as: "+path);
+		this.IndexFile(col).Save(Files.AddToFileName(path, " index"));
+		return this;
+
+	}
+	public FileData IndexReadThis (String key,int col){
+		String sortedPath=Files.AddToFileName(this.path, " sorted");
+		col--;
+		long start=0,end=0;
+		
+		try{
+			File indexFile = new File(Files.AddToFileName(this.path, " sorted index"));
+			if (!indexFile.exists()){
+				System.out.println("Index file not found, indexing and sorting By column:"+(col+1)+"...");
+				this.ReadThis(false).SortAndIndex(col+1);
+				System.out.println("Index file created");
+			}
+			FileData index=new FileData().SetPath(indexFile.getPath()).SetDelimiter("\t").ReadThis(true);
+			FileData cluster=new FileData().SetPath(this.path).SetDelimiter("\t");
+			for (String[] row:index.Data){
+				if(row[0].equalsIgnoreCase(key)){
+					start=Long.valueOf(row[1]);
+					end=Long.valueOf(row[2]);
+					break;
+				}
+			}
+			BufferedRandomAccessFile File=null;
+	        try {
+	       	 	File = new BufferedRandomAccessFile(sortedPath, "r");
+	        }catch (FileNotFoundException e2) {
+	             	e2.printStackTrace();
+	        }
+           	cluster.SetHeaders(File.getNextLine().split("\t"));
+	        File.seek(start);
+	        System.out.println("Start: "+start+" end: "+end);
+	        while (end>File.getFilePointer()){
+//	        	System.out.println(File.getFilePointer()); //Debug
+	        	if (File.getFilePointer()>=start && File.getFilePointer()<=end/* && File.getNextLine().split("\t")[col].equalsIgnoreCase(key)*/){
+	        		cluster.AddRow(File.getNextLine().split("\t"));
+	             }else{
+	            	 File.getNextLine();
+	             }
+	             }System.out.println("End of File");
+	        	try{
+	               	File.close();
+	             } catch (IOException e) {   
+	                    e.printStackTrace();
+	             }      
+	             cluster.SetDelimiter("\t");
+	             cluster.SetPath(Files.AddToFileName(path, " "+key+" Cluster"));
+	       return cluster;
+		}
+		catch (Exception e){
+			e.printStackTrace();
+			return null;
+		}
+	}
+	public boolean HasHeaders(){
+		if (this.Headers!=null && !this.Headers.equals(""))
+			return true;
+		else
+			return false;
+	}
+	public FileData ReadAll(String path,String format,boolean headers) throws IOException{
+		FileData data=new FileData();
+		ArrayList<File> files=listFilesForFolder(path,format);
+		for (File file:files){
+			data.AddData(Open(file.getPath(), "\t",headers));
+		}
+		return data;
+	}
+	public FileData ReadIF(String path,String delimiter,int[] Cols,String[] Criteria) throws IOException{
+		FileData filedata = new FileData().SetPath(path).SetDelimiter(delimiter);
+		int iter=0;
+		boolean match=true;
+		String temp="";
+		if (delimiter!= null && !delimiter.equals("")){
+			 //System.out.println("Delimiter is: "+delimiter);
+		} else{
+			 delimiter="\t";
+			 }
+		 BufferedRandomAccessFile File=null;
+	    try {
+	   	 File = new BufferedRandomAccessFile(path, "r");
+	    }catch (FileNotFoundException e2) {
+	         	e2.printStackTrace();
+	    }
+	           while (File.length()!=File.getFilePointer()){
+	        	   temp=File.getNextLine();
+	        	   for (int Col:Cols){
+	        		   if (temp.split("\t")[Col].equalsIgnoreCase(Criteria[iter])&&match==true){
+	        			   iter++;
+	        		   }else{
+	        			   match=false;
+	        			   iter=0;
+	        			   break;
+	        		   }
+	        	   }
+	        	   if (match)
+	        		   filedata.AddRow(temp.split("\t"));
+	        	   match=true;
+	        	   iter=0;
+	        	   
+	           }
+	           try {
+	           	File.close();
+	         } catch (IOException e) {   
+	                e.printStackTrace();
+	         }      
+	   filedata.SetDelimiter(delimiter);
+	   filedata.SetPath(path);
+	   System.out.println("Done");
+	   return filedata;
+	}
+	public void SplitFile(long Size){
+		int FileIndex=1;
+		String Headers="";
+		String out="";
+		boolean HasNext=true;
+		    BufferedReader File=null;
+		    try {
+		   	 	File = new BufferedReader(new FileReader(path));
+		    }catch (FileNotFoundException e2) {
+		         	System.out.println("No File Found");
+		         	System.exit(0);
+		    }
+		    String dataRow=null;
+		    try{
+		    	 Headers=File.readLine();
+		    }catch (IOException e1) {
+		            System.out.println("IO Exception while reading Headers");
+		    }
+		    while (HasNext){
+		    	Files.WriteLine(Files.AddToFileName(path, "_"+String.valueOf(FileIndex)), Headers); 
+		    		for (int i = 0;i<Size&&HasNext;i++){
+		    			try {
+							out=File.readLine();
+						}catch (IOException e1) {
+							e1.printStackTrace();
+						}
+		    			if (out!=null && !out.equals("")){
+							Files.WriteLine(Files.AddToFileName(path, "_"+String.valueOf(FileIndex)),out); 
+		    			}else{
+		    				HasNext=false;
+		    			}
+		    		}
+		        	if (HasNext)
+		        		FileIndex++;
+		        	System.out.println(FileIndex+" Files Finished");}  			    
+		    System.out.println("Done");
+		    try {
+		           	File.close();
+		    } catch (IOException e) {
+		            e.printStackTrace();}      
+		System.out.println("File Split Cpmplete, "+String.valueOf(FileIndex)+" Files Created");
+		}
+}
+
+
