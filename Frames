@@ -1,0 +1,43 @@
+package dm;
+
+import java.io.File;
+import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+
+
+public class Frame {
+	static JFrame frame = new JFrame("Frame");
+	public static String DropDownList(String Message,String[] options){
+		String out = (String) JOptionPane.showInputDialog(
+		frame,
+		Message,
+		"DropDown",
+		JOptionPane.QUESTION_MESSAGE,
+		null,
+		options,
+		options[0]);
+		return out;
+	}
+	public static String InputFrame(String Message){
+		String out = (String) JOptionPane.showInputDialog(frame,
+		Message,
+		"Input",
+		JOptionPane.QUESTION_MESSAGE);
+		return out;	
+	}
+	public static void MessageFrame(String Message){
+		 JOptionPane.showMessageDialog(frame,
+		Message,
+		"Message",
+		JOptionPane.INFORMATION_MESSAGE);
+	}
+	public static File FileBrowse(){
+		  JFileChooser f = new JFileChooser();
+	      f.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES); 
+	      f.showSaveDialog(null);
+	      return f.getSelectedFile();
+	}
+	
+
+}
