@@ -1,0 +1,36 @@
+package dm;
+
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.TreeMap;
+
+public class FileSorter {
+private  ArrayList<String[]> source=new ArrayList<String[]>();
+private TreeMap <String, ArrayList<String[]>> clusters=new TreeMap <String, ArrayList<String[]>>();
+public FileSorter(ArrayList<String[]> FileToSort){
+	this.source=FileToSort;
+}
+public ArrayList<String[]> SortBy(int col,boolean header){
+	col--;
+	ArrayList<String[]> out = new ArrayList<String[]>();
+	for (String[] row:source){
+		if (header && clusters.isEmpty())
+			out.add(row);
+		else if (!clusters.containsKey(row[col])){
+//			System.out.println("adding "+row[col]+" cluster"); //Debug
+			clusters.put(row[col], new ArrayList<String[]>());
+			for (String[] row2:source){
+				if (row2[col].equals(row[col])){
+					clusters.get(row[col]).add(row2);
+				}
+			}
+		}
+	}
+	for(Map.Entry<String, ArrayList<String[]>> entry : clusters.entrySet()) {
+		  String key = entry.getKey();
+		  ArrayList<String[]> cluster= entry.getValue();
+		  out.addAll(cluster);
+		}
+	return out;
+}
+}
